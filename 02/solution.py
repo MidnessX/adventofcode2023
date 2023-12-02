@@ -26,9 +26,6 @@ def parse_observation(game_observation: str) -> Observation:
 
         setattr(observation, color, num)
 
-    if observation.red == 0 and observation.green == 0 and observation.blue == 0:
-        raise ValueError()
-
     return observation
 
 
@@ -49,18 +46,33 @@ def parse_line(line: str) -> tuple[int, list[Observation]]:
 
 with open("02/input.txt", "r") as games_f:
     game_id_sum = 0
+    power_sum = 0
 
     for line in games_f.readlines():
         game_id, observations = parse_line(line)
 
         valid = True
 
+        minima = (
+            Observation()
+        )  # Reuse the Observation class to hold minma for the three colors
+
         for observation in observations:
             if observation.red > 12 or observation.green > 13 or observation.blue > 14:
                 valid = False
-                break
+
+            if observation.red > minima.red:
+                minima.red = observation.red
+            if observation.green > minima.green:
+                minima.green = observation.green
+            if observation.blue > minima.blue:
+                minima.blue = observation.blue
 
         if valid:
             game_id_sum += game_id
 
+        power_sum += minima.red * minima.green * minima.blue
+
+
 print(f"Sum of valid game IDs: {game_id_sum}")
+print(f"Sum of set powers: {power_sum}")
