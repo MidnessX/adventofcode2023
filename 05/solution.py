@@ -23,7 +23,7 @@ from functools import total_ordering
 #
 #
 # =====                                                                   ======
-# | s                                                                          |
+# | s                                                                        X |
 # | o                                                                     ======
 # | u       =====
 # | r       |
@@ -32,14 +32,14 @@ from functools import total_ordering
 #           |                                                          targets |
 #           =====                                                         ======
 # |                                                                       ======
-# | i                                                                          |
+# | i                                                                        Y |
 # | n                                                                     ======
 # | t       ======
 # | e       | range B
 # | r       | sources
 # | v       ======
 # | a                                                                     ======
-# | l                                                                          |
+# | l                                                                        Z |
 # ======                                                                  ======
 #
 #
@@ -108,6 +108,7 @@ class AlmanacMap:
         target_intervals = list()
 
         for int_start, int_end in intervals:
+            # We start by finding out which ranges may overlap with the interval
             start_range_pos = bisect.bisect_right(self.ranges, int_start) - 1
             stop_range_pos = bisect.bisect_right(self.ranges, int_end)
 
@@ -120,19 +121,38 @@ class AlmanacMap:
             if stop_range_pos > len(self.ranges):
                 stop_range_pos = len(self.ranges)
 
-            # Consider the part of the interval between the start of the
-            # interval and the beginning of the first range.
+            # We first have to make sure that the first range found actually
+            # contains the start of the interval. Otherwise, we move on to the
+            # following range.
+            if start_range_pos > 0 and int_start > self.ranges[start_range_pos].end:
+                start_range_pos = start_range_pos + 1
+
+            # We could end up in a situation where there actually is no overlap
+            # between the interval and any range. In this case, we simply copy
+            # the interval and move on.
+            if start_range_pos == stop_range_pos:
+                target_intervals.append((int_start, int_end))
+                continue
+
+            # Code below deals with all the overlaps.
+
+            # We start by considering the part of the interval lying between the
+            # start of the interval and the beginning of the first range.
+            # This part is X in the drawing above.
             if int_start < self.ranges[start_range_pos].source:
                 target_intervals.append(
-                    (int_start, self.ranges[start_range_pos].source)
+                    (int_start, self.ranges[start_range_pos].source - 1)
                 )
+
+            # We now consider all the overlaps and the spaces between ranges
 
             for i in range(start_range_pos, stop_range_pos):
                 r = self.ranges[i]
 
-                # We need to consider the part which did not overlap located
-                # between the end of the previous range and the beginning of the
-                # current one
+                # Here we consider the part of the interval not overlapping with
+                # any range located between the the end of the previous range
+                # and the beginning of the current one.
+                # This part is identified by Y in the drawing above.
                 if i > start_range_pos and r.source > self.ranges[i - 1].end + 1:
                     target_intervals.append((self.ranges[i - 1].end + 1, r.source - 1))
 
@@ -146,7 +166,8 @@ class AlmanacMap:
 
             # Finally, we need to consider the part of the interval which might
             # be located after the end of the last range, if the end of the
-            # interval is greater than the end of the last range
+            # interval is greater than the end of the last range.
+            # That's the part identified by Z in the drawing above.
             if int_end > self.ranges[stop_range_pos - 1].end:
                 target_intervals.append((self.ranges[stop_range_pos].end + 1, int_end))
 
