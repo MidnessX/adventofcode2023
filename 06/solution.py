@@ -44,11 +44,20 @@ with open("06/input.txt") as race_f:
 times = [int(val.group()) for val in num_re.finditer(times)]
 distances = [int(val.group()) for val in num_re.finditer(distances)]
 
+# For part two.
+single_time = int(str().join([str(val) for val in times]))
+single_distance = int(str().join([str(val) for val in distances]))
+
 records = [Race(time, distance) for time, distance in zip(times, distances)]
 
-possibilities = 1
+multiple_races_possibilities = 1
 for race in records:
     min_press, max_press = get_ranges(race)
-    possibilities *= max_press - min_press
+    multiple_races_possibilities *= max_press - min_press
 
-print(f"Total number of possibilities: {possibilities}")
+# Part two.
+min_press, max_press = get_ranges(Race(single_time, single_distance))
+single_race_possibilities = max_press - min_press
+
+print(f"Total number of possibilities (muliple races): {multiple_races_possibilities}")
+print(f"Total number of possibilities (single race): {single_race_possibilities}")
