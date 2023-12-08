@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import bisect
 from typing import Any
 from functools import total_ordering
+from itertools import cycle
+from math import lcm
 
 
 @dataclass
@@ -33,6 +35,8 @@ with open(Path(__file__).parent / "input.txt") as map_f:
 
     map_f.readline()  # Consume an empty line
 
+    # List of nodes in the file.
+    # Will be kept ordered by node name to speed up the search for a node.
     nodes = list()
 
     for line in map_f.readlines():
@@ -48,16 +52,45 @@ with open(Path(__file__).parent / "input.txt") as map_f:
 # Part 1
 
 next_node = "AAA"
-next_i = 0
 steps = 0
 
-while next_node != "ZZZ":
+for direction in cycle(instr):
+    if next_node == "ZZZ":
+        break
+
     node_pos = bisect.bisect_left(nodes, next_node, key=lambda n: n.name)
     node = nodes[node_pos]
 
-    next_node = node.l if instr[next_i] == "L" else node.r
-    next_i = (next_i + 1) % len(instr)
+    next_node = node.l if direction == "L" else node.r
 
     steps += 1
 
 print(f"Number of steps required to reach node ZZZ: {steps}")
+
+# Part 2
+# Iterating simultaneously through the graph for all the starting nodes would
+# require too many iterations.
+# Instead, we can find the minimum number of steps to reach a node ending with
+# Z for for each of the starting nodes, and then calculate the least common
+# multiple of these values to find the number of simultaneous steps we should
+# have done.
+
+next_nodes = list(map(lambda n: n.name, filter(lambda n: n.name.endswith("A"), nodes)))
+cycle_lengths = list()
+
+for i in range(len(next_nodes)):
+    next_node = next_nodes[i]
+
+    for step, direction in enumerate(cycle(instr)):
+        node_pos = bisect.bisect_left(nodes, next_node, key=lambda n: n.name)
+        node = nodes[node_pos]
+
+        if node.name.endswith("Z"):
+            cycle_lengths.append(step)
+            break
+
+        next_node = node.l if direction == "L" else node.r
+
+steps = lcm(*cycle_lengths)
+
+print(f"Number of steps required to reach nodes ending with Z: {steps}")
