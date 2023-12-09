@@ -13,11 +13,7 @@ def predict(sequence: list[int]) -> int:
 
         i += 1
 
-    prediction = 0
-    for val in history:
-        prediction += val
-
-    return prediction
+    return sum(history)
 
 
 with open(Path(__file__).parent / "input.txt") as seq_f:
