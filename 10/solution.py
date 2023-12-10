@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
-import sys
 from dataclasses import dataclass
-
-sys.setrecursionlimit(10000)
 
 # X are rows in the map.
 # Y are columns in the map.
@@ -54,6 +51,9 @@ def navigate_recursive(
     start: Pipe,
     pipes: list[list[Pipe]],
 ) -> list[Pipe]:
+    # Does not work on input.txt due to the path being too long and causing a
+    # stack overflow.
+
     if prev and pipe == start:
         return [pipe]
 
@@ -68,7 +68,7 @@ def navigate_recursive(
         e_pipe = pipes[e_x][e_y]
 
         # Check that we are not going back to the previous pipe
-        if e_pipe == prev:
+        if prev and e_pipe == prev:
             continue
 
         other_ep = list(
@@ -141,5 +141,7 @@ with open(Path(__file__).parent / "input.txt") as map_f:
 
         x += 1
 
+# path = navigate_recursive(start, None, start, pipes)
 path = navigate(start, start, pipes)
+
 print(f"Steps to reach farthest point in loop: {len(path) // 2}")
