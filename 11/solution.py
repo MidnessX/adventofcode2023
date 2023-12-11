@@ -3,6 +3,9 @@ from functools import reduce
 from itertools import combinations
 from pathlib import Path
 
+# EXPANSION_COPIES = 1  # Part 1
+EXPANSION_COPIES = int(1e6) - 1  # Part 2
+
 
 @dataclass
 class Galaxy:
@@ -33,11 +36,13 @@ with open(Path(__file__).parent / "input.txt") as map_f:
         x += 1
 
         if not has_galaxy:
-            x += 1
+            x += EXPANSION_COPIES
 
+# Expand columns by adding the number of columns which have to be expanded that
+# are found to the left of each galaxy, multiplied by the number of copies.
 for galaxy in galaxies:
     dups = reduce(lambda x, y: x + y, cols_dup[: galaxy.y], False)
-    galaxy.y += dups
+    galaxy.y += dups * EXPANSION_COPIES
 
 total_distance = 0
 
