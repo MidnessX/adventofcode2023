@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 
+# I have no idea why counts for part 2 are considered too high (36506), as all
+# the reflections found by the code appear to respect the criteria (only one
+# possible character substitution).
+# Comparing results with another script giving the right answer (31603), it
+# appears that this second script misses vertical reflections found by my code.
+
 from enum import IntEnum, auto
 from pathlib import Path
 
 import numpy as np
+
+FIX_SMUDGES = True
 
 
 class Directions(IntEnum):
@@ -11,40 +19,52 @@ class Directions(IntEnum):
     V = auto()
 
 
-def find_reflections(pattern: np.ndarray[str]) -> tuple[int, Directions]:
+def find_reflections(pattern: np.ndarray, fix: bool = False) -> tuple[int, Directions]:
     # Horizontal reflection
-    for i in range(0, pattern.shape[0] - 1):
-        if all(pattern[i] == pattern[i + 1]):
-            valid = True
+    for i in range(pattern.shape[0] - 1):
+        valid = True
+        # If we don't want to allow any character substitution as in part 1,
+        # we simply have to set fixed to True.
+        fixed = False if fix else True
 
-            # Check each pair of rows starting from i and moving farther away.
-            # We do this for a number of times equal to the minimum between
-            # i (i.e. the number of rows above) and pattern.shape[0] - i (i.e.
-            # the number of rows below).
-            # We add 1 to i since the range starts at 1 (the row before) and we
-            # subtract 1 to pattern.shape[0] - i due to having to skip the
-            # i+1-th row that we already checked.
-            for j in range(1, min(pattern.shape[0] - i - 1, i + 1)):
-                if any(pattern[i - j] != pattern[i + j + 1]):
-                    valid = False
-                    break
+        for j in range(min(pattern.shape[0] - i - 1, i + 1)):
+            diff = pattern[i - j] != pattern[i + j + 1]
 
-            if valid:
-                return (i + 1, Directions.H)
+            # If there's no difference, continue
+            if not any(diff):
+                continue
+
+            # If differences are greater than 1, or we already fixed a
+            # smudge, there's nothing else we can do
+            if fixed or sum(diff) > 1:
+                valid = False
+                break
+
+            # Mark that we had to swap a symbol due to a smudge in the pattern
+            fixed = True
+
+        if valid:
+            return (i + 1, Directions.H)
 
     # Vertical reflection
-    # Same as for rows, only checking columns this time.
-    for i in range(0, pattern.shape[1] - 1):
-        if all(pattern[:, i] == pattern[:, i + 1]):
-            valid = True
+    for i in range(pattern.shape[1] - 1):
+        valid = True
+        fixed = False if fix else True
 
-            for j in range(1, min(pattern.shape[1] - i - 1, i + 1)):
-                if any(pattern[:, i - j] != pattern[:, i + j + 1]):
-                    valid = False
-                    break
+        for j in range(min(pattern.shape[1] - i - 1, i + 1)):
+            diff = pattern[:, i - j] != pattern[:, i + j + 1]
 
-            if valid:
-                return (i + 1, Directions.V)
+            if not any(diff):
+                continue
+
+            if fixed or sum(diff) > 1:
+                valid = False
+                break
+
+            fixed = True
+
+        if valid:
+            return (i + 1, Directions.V)
 
     raise ValueError("No reflection found in pattern.")
 
@@ -66,12 +86,14 @@ with open(Path(__file__).parent / "input.txt") as pat_f:
             pattern.append([char for char in line])
             continue
 
-        i, direction = find_reflections(np.array(pattern))
+        i, direction = find_reflections(np.array(pattern), fix=FIX_SMUDGES)
         summary += summarize(i, direction)
 
         pattern.clear()
 
-    i, direction = find_reflections(np.array(pattern))
+    i, direction = find_reflections(np.array(pattern), fix=FIX_SMUDGES)
     summary += summarize(i, direction)
 
-print(f"Reflection summary: {summary}")
+print(
+    f"Reflection summary ({'smudges fixed' if FIX_SMUDGES else 'smudges not fixed'}): {summary}"
+)
