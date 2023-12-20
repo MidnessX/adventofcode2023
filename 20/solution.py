@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from dataclasses import dataclass
+from math import lcm
 from pathlib import Path
 
 
@@ -45,17 +46,6 @@ class BroadcastModule(Module):
         return [(self.name, conn, pulse) for conn in self.conns]
 
 
-@dataclass
-class RxModule(Module):
-    machine_active: bool = False
-
-    def pulse(self, module: str, pulse: bool) -> list[tuple[str, bool]]:
-        if not pulse:
-            self.machine_active = True
-
-        return list()
-
-
 def load_modules() -> dict[str, Module]:
     modules: dict[str, Module] = dict()
 
@@ -80,29 +70,21 @@ def load_modules() -> dict[str, Module]:
 
             modules[name] = module
 
-    rx_module = None
-
     # Add inputs to ConjunctionModule instances
     for module_name, module in modules.items():
         for conn_name in module.conns:
             conn = modules.get(conn_name)
 
             if conn is None:
-                # We must handle end modules which have no entry in the file.
-                # We instantiate one on the fly.
-                conn = RxModule(conn_name, list())
-                rx_module = conn
+                continue
 
             if isinstance(conn, ConjunctionModule):
                 conn.inputs[module_name] = False
 
-    if rx_module is not None:
-        modules[rx_module.name] = rx_module
-
     return modules
 
 
-def push(modules: dict[str, Module]) -> tuple[int, int]:
+def push(modules: dict[str, Module], watch: tuple[str, bool] = None) -> tuple[int, int]:
     pulses = [("button", "broadcaster", False)]
     low_p = 0
     high_p = 0
@@ -112,6 +94,9 @@ def push(modules: dict[str, Module]) -> tuple[int, int]:
             sender_name, dest_name, val = pulses.pop(0)
         except IndexError:
             break
+
+        if watch and dest_name == watch[0] and val == watch[1]:
+            return (None, None)
 
         low_p += 1 if not val else 0
         high_p += 1 if val else 0
@@ -164,12 +149,33 @@ lpc, hpc = total_pulses(modules)
 print(f"Multiplication of total pulses sent after 1000 cycles: {lpc * hpc}.")
 
 
-modules = load_modules()
-rx_module = modules["rx"]
+# Part 2 is ugly, but I'm too tired to improve it. Not even sure how much
+# better it can become.
+# Basically, we get modules connected to the module connected to RX.
+# We assume both the module connected to RX and its ancestors to be of the
+# ConjunctionModule kind, or this won't work.
+# Ancestors must all output a high signal simultaneously in order for the
+# module connected to RX to output a low signal, triggering the start of the
+# machine connected to RX.
+# With this information it's trivial to recognize we have to find the occurrence
+# of a low signal being delivered to one of the ancestors in order to determine
+# its activation cycle length.
+# Once we do this for all the ancestors, using the LCM we can determine the
+# minimum number of steps required for RX to receive a low pulse.
 
-i = 0
-while not rx_module.machine_active:
-    i += 1
-    push(modules)
+cycles = {name: 0 for name in ["gt", "vr", "nl", "lr"]}
 
-print(f"Minimum number of pushes to activate RX module: {i}.")
+for module_name in cycles.keys():
+    modules = load_modules()
+
+    i = 0
+    retval = (-1, -1)
+
+    while retval != (None, None):
+        retval = push(modules, watch=(module_name, False))
+        i += 1
+
+    cycles[module_name] = i
+
+
+print(f"Minimum number of pushes to activate RX module: {lcm(*cycles.values())}.")
