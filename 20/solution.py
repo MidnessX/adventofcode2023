@@ -45,7 +45,64 @@ class BroadcastModule(Module):
         return [(self.name, conn, pulse) for conn in self.conns]
 
 
-def push() -> tuple[int, int]:
+@dataclass
+class RxModule(Module):
+    machine_active: bool = False
+
+    def pulse(self, module: str, pulse: bool) -> list[tuple[str, bool]]:
+        if not pulse:
+            self.machine_active = True
+
+        return list()
+
+
+def load_modules() -> dict[str, Module]:
+    modules: dict[str, Module] = dict()
+
+    with open(Path(__file__).parent / "input.txt") as config_f:
+        for line in config_f.readlines():
+            line = line.rstrip()
+
+            name, conns = line.split("->")
+            name = name.rstrip()
+            conns = conns.lstrip()
+
+            conns = [conn.lstrip() for conn in conns.split(",")]
+
+            if name[0] == "%":
+                module = FlipFlopModule(name=name[1:], conns=conns)
+            elif name[0] == "&":
+                module = ConjunctionModule(name=name[1:], conns=conns, inputs=dict())
+            else:
+                module = BroadcastModule(name=name, conns=conns)
+
+            name = name[1:] if not isinstance(module, BroadcastModule) else name
+
+            modules[name] = module
+
+    rx_module = None
+
+    # Add inputs to ConjunctionModule instances
+    for module_name, module in modules.items():
+        for conn_name in module.conns:
+            conn = modules.get(conn_name)
+
+            if conn is None:
+                # We must handle end modules which have no entry in the file.
+                # We instantiate one on the fly.
+                conn = RxModule(conn_name, list())
+                rx_module = conn
+
+            if isinstance(conn, ConjunctionModule):
+                conn.inputs[module_name] = False
+
+    if rx_module is not None:
+        modules[rx_module.name] = rx_module
+
+    return modules
+
+
+def push(modules: dict[str, Module]) -> tuple[int, int]:
     pulses = [("button", "broadcaster", False)]
     low_p = 0
     high_p = 0
@@ -70,66 +127,49 @@ def push() -> tuple[int, int]:
     return (low_p, high_p)
 
 
-with open(Path(__file__).parent / "input.txt") as config_f:
-    modules: dict[str, Module] = dict()
+def total_pulses(modules: dict[str, Module]) -> tuple[int, int]:
+    i = 0
+    cycle = -1
+    lpc = 0
+    hpc = 0
+    fp = list(filter(lambda x: isinstance(x, FlipFlopModule), modules.values()))
+    prev_states = [[(module.name, module.state) for module in fp]]
 
-    for line in config_f.readlines():
-        line = line.rstrip()
+    while i < 1000:
+        i += 1
 
-        name, conns = line.split("->")
-        name = name.rstrip()
-        conns = conns.lstrip()
+        low_p, high_p = push(modules)
+        lpc += low_p
+        hpc += high_p
 
-        conns = [conn.lstrip() for conn in conns.split(",")]
+        state = [(module.name, module.state) for module in fp]
 
-        if name[0] == "%":
-            module = FlipFlopModule(name=name[1:], conns=conns)
-        elif name[0] == "&":
-            module = ConjunctionModule(name=name[1:], conns=conns, inputs=dict())
+        if cycle == -1 and state in prev_states:
+            cycle = i
+
+            skips = (1000 - cycle) // cycle
+
+            i += skips * cycle
+            lpc += skips * lpc
+            hpc += skips * hpc
         else:
-            module = BroadcastModule(name=name, conns=conns)
+            prev_states.append(state)
 
-        name = name[1:] if not isinstance(module, BroadcastModule) else name
-
-        modules[name] = module
-
-for module_name, module in modules.items():
-    for conn_name in module.conns:
-        conn = modules.get(conn_name)
-
-        if conn is None:
-            continue
-
-        if isinstance(conn, ConjunctionModule):
-            conn.inputs[module_name] = False
+    return lpc, hpc
 
 
-i = 0
-cycle = -1
-lpc = 0
-hpc = 0
-fp = list(filter(lambda x: isinstance(x, FlipFlopModule), modules.values()))
-prev_states = [[(module.name, module.state) for module in fp]]
-
-while i < 1000:
-    i += 1
-
-    low_p, high_p = push()
-    lpc += low_p
-    hpc += high_p
-
-    state = [(module.name, module.state) for module in fp]
-
-    if cycle == -1 and state in prev_states:
-        cycle = i
-
-        skips = (1000 - cycle) // cycle
-
-        i += skips * cycle
-        lpc += skips * lpc
-        hpc += skips * hpc
-    else:
-        prev_states.append(state)
-
+modules = load_modules()
+lpc, hpc = total_pulses(modules)
 
 print(f"Multiplication of total pulses sent after 1000 cycles: {lpc * hpc}.")
+
+
+modules = load_modules()
+rx_module = modules["rx"]
+
+i = 0
+while not rx_module.machine_active:
+    i += 1
+    push(modules)
+
+print(f"Minimum number of pushes to activate RX module: {i}.")
