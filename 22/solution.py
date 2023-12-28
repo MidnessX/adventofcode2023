@@ -2,13 +2,13 @@
 
 from pathlib import Path
 from dataclasses import dataclass
-import numpy as np
 
 SIZE = (10, 10)
 
 
 @dataclass
 class Block:
+    id: str
     x_min: int
     x_max: int
     y_min: int
@@ -17,6 +17,9 @@ class Block:
     z_max: int
     supports: list["Block"]
     supported_by: list["Block"]
+
+    def __hash__(self) -> int:
+        return hash(self.id)
 
 
 def fall(blocks: list[Block]) -> list[Block]:
@@ -60,8 +63,19 @@ def safe_to_remove(block: Block) -> bool:
     return True
 
 
+def count_falling_blocks(block: Block, fallen: set[Block]) -> int:
+    if len(fallen) > 0 and len(set(block.supported_by).difference(fallen)) > 0:
+        return 0
+
+    fallen.add(block)
+
+    for s_block in block.supports:
+        count_falling_blocks(s_block, fallen)
+
+    return len(fallen)
+
+
 blocks: list[Block] = list()
-# chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 with open(Path(__file__).parent / "input.txt") as snap_f:
     for i, line in enumerate(snap_f):
@@ -72,7 +86,7 @@ with open(Path(__file__).parent / "input.txt") as snap_f:
         xs, ys, zs = [int(v) for v in start.split(",")]
         xe, ye, ze = [int(v) for v in end.split(",")]
 
-        blocks.append(Block(xs, xe, ys, ye, zs, ze, list(), list()))
+        blocks.append(Block(i, xs, xe, ys, ye, zs, ze, list(), list()))
 
 
 blocks = fall(blocks)
@@ -80,3 +94,7 @@ blocks = fall(blocks)
 safe_blocks = list(filter(safe_to_remove, blocks))
 
 print(f"Safely removable blocks: {len(safe_blocks)}.")
+
+fallen_blocks = list(map(lambda block: count_falling_blocks(block, set()) - 1, blocks))
+
+print(f"Sum of falling blocks for each block removed: {sum(fallen_blocks)}.")
