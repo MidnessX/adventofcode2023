@@ -3,8 +3,6 @@
 from pathlib import Path
 from dataclasses import dataclass
 
-SIZE = (10, 10)
-
 
 @dataclass
 class Block:
