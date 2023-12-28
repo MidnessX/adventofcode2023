@@ -28,9 +28,14 @@ def fall(blocks: list[Block]) -> list[Block]:
     for i, block in enumerate(blocks):
         possible_supports: list[Block] = list()
 
+        # Iterate over blocks below to find out which ones are providing
+        # support for the block.
+        # It is important to remember that block below may no longer be ordered
+        # by ascending Z value, so every one of them must be checked.
         for j in range(i - 1, -1, -1):
             block_below = blocks[j]
 
+            # Check for overlap between the block and that below.
             if (
                 block.x_min <= block_below.x_max
                 and block.x_max >= block_below.x_min
@@ -39,12 +44,16 @@ def fall(blocks: list[Block]) -> list[Block]:
             ):
                 possible_supports.append(block_below)
 
+        # If possible_supports is empty, it means the block is lying on the
+        # ground.
         if len(possible_supports) == 0:
             new_z = 1
         else:
             new_z = max(possible_supports, key=lambda block: block.z_max).z_max
 
-        block.z_max = new_z + 1 + (block.z_max - block.z_min)
+        block.z_max = (
+            new_z + 1 + (block.z_max - block.z_min)
+        )  # Add one to account for the fact that the block is resting above the support
         block.z_min = new_z + 1
 
         for support in possible_supports:
@@ -64,6 +73,18 @@ def safe_to_remove(block: Block) -> bool:
 
 
 def count_falling_blocks(block: Block, fallen: set[Block]) -> int:
+    # The key here is sharing the set of fallen blocks.
+    # If a block (A)is supported by two or more blocks (B and C) which would
+    # fall if other blocks below them (D) are removed, the first recursive call
+    # for A would return 0 as that block on top still has one or more supports.
+    # However, other recursive calls will eventually populate the set with
+    # all the supports (B and C), and A will eventually be added to the falling
+    # set as it should be.
+    #
+    #   A
+    #  B C
+    #   D
+
     if len(fallen) > 0 and len(set(block.supported_by).difference(fallen)) > 0:
         return 0
 
@@ -72,6 +93,9 @@ def count_falling_blocks(block: Block, fallen: set[Block]) -> int:
     for s_block in block.supports:
         count_falling_blocks(s_block, fallen)
 
+    # We simply return the cardinality of the set, as after all the recursive
+    # calls are completed it represents the entirety of the blocks that would
+    # fall.
     return len(fallen)
 
 
