@@ -18,17 +18,17 @@ class Hail:
     vz: int
 
     @property
-    def slope(self) -> float:
+    def slope_xy(self) -> float:
         # m = (y1 - y0) / (x1 - x0)
         # m = vy / vx
 
         return self.vy / self.vx
 
     @property
-    def intercept(self) -> float:
+    def intercept_xy(self) -> float:
         # b = y - mx
 
-        return self.y - (self.slope * self.x)
+        return self.y - (self.slope_xy * self.x)
 
 
 def find_collisions(hail: list[Hail]) -> int:
@@ -38,12 +38,14 @@ def find_collisions(hail: list[Hail]) -> int:
         if hail_a == hail_b:
             continue
 
-        if hail_a.slope == hail_b.slope:
+        if hail_a.slope_xy == hail_b.slope_xy:
             # Parallel lines, they will never intercept
             continue
 
-        x = (hail_b.intercept - hail_a.intercept) / (hail_a.slope - hail_b.slope)
-        y = hail_a.slope * x + hail_a.intercept
+        x = (hail_b.intercept_xy - hail_a.intercept_xy) / (
+            hail_a.slope_xy - hail_b.slope_xy
+        )
+        y = hail_a.slope_xy * x + hail_a.intercept_xy
 
         if (
             (x < hail_a.x and hail_a.vx > 0)
