@@ -4,8 +4,8 @@ from pathlib import Path
 from dataclasses import dataclass
 from itertools import combinations
 
-COLL_AREA_MIN = 7
-COLL_AREA_MAX = 27
+COLL_AREA_MIN = 200000000000000
+COLL_AREA_MAX = 400000000000000
 
 
 @dataclass
@@ -38,8 +38,21 @@ def find_collisions(hail: list[Hail]) -> int:
         if hail_a == hail_b:
             continue
 
+        if hail_a.slope == hail_b.slope:
+            # Parallel lines, they will never intercept
+            continue
+
         x = (hail_b.intercept - hail_a.intercept) / (hail_a.slope - hail_b.slope)
         y = hail_a.slope * x + hail_a.intercept
+
+        if (
+            (x < hail_a.x and hail_a.vx > 0)
+            or (x > hail_a.x and hail_a.vx < 0)
+            or (x < hail_b.x and hail_b.vx > 0)
+            or (x > hail_b.x and hail_b.vx < 0)
+        ):
+            # Interception point is in the past
+            continue
 
         if COLL_AREA_MIN <= x <= COLL_AREA_MAX and COLL_AREA_MIN <= y <= COLL_AREA_MAX:
             collisions += 1
@@ -49,7 +62,7 @@ def find_collisions(hail: list[Hail]) -> int:
 
 hail: list[Hail] = list()
 
-with open(Path(__file__).parent / "test.txt") as hail_f:
+with open(Path(__file__).parent / "input.txt") as hail_f:
     for line in hail_f.readlines():
         line = line.rstrip()
 
