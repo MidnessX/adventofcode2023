@@ -11,7 +11,7 @@ def compatible(line: str, counts: tuple[int, ...]) -> bool:
 
 
 @cache
-def count_perms(line: str, faults: tuple[int, ...]) -> int:
+def admissible_permutations(line: str, faults: tuple[int, ...]) -> int:
     # If we don't have any more characters but the sequence of faults has not
     # been exhausted, it means character choices made so far lead to an
     # inadmissible sequence.
@@ -28,7 +28,7 @@ def count_perms(line: str, faults: tuple[int, ...]) -> int:
     # When we are dealing with a . character we have nothing to do other than
     # checking the rest of the sequence.
     if line[0] in ".":
-        return count_perms(line[1:], faults)
+        return admissible_permutations(line[1:], faults)
 
     # When we find a # character we must assume it to be part of sequence of
     # faulty springs having length given by the first entry of the faults tuple.
@@ -51,16 +51,16 @@ def count_perms(line: str, faults: tuple[int, ...]) -> int:
             and line[faults[0]] != "#"
             and "." not in line[: faults[0]]
         ):
-            return count_perms(line[faults[0] + 1 :], faults[1:])
+            return admissible_permutations(line[faults[0] + 1 :], faults[1:])
         elif faults[0] == len(line) and "." not in line:
-            return count_perms("", faults[1:])
+            return admissible_permutations("", faults[1:])
         else:
             return 0
 
     # line[0] == "?" here, so we simply have to swap it with each of the two
     # possible alternatives and sum together the possible permutations for each
     # case.
-    return sum(count_perms(alt + line[1:], faults) for alt in ".#")
+    return sum(admissible_permutations(alt + line[1:], faults) for alt in ".#")
 
 
 poss = 0
@@ -71,8 +71,8 @@ with open(Path(__file__).parent / "input.txt") as diag_f:
         chars, counts = line.split(" ")
         counts = tuple([int(c) for c in counts.split(",")])
 
-        poss += count_perms(chars, counts)
-        poss_unrolled += count_perms("?".join([chars] * 5), counts * 5)
+        poss += admissible_permutations(chars, counts)
+        poss_unrolled += admissible_permutations("?".join([chars] * 5), counts * 5)
 
 print(f"Total possibilities: {poss}.")
 print(f"Total possibilities (unrolled): {poss_unrolled}.")
